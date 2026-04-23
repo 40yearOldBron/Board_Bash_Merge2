@@ -11,6 +11,15 @@ struct CheckersView: View {
     @State private var pieces: [Piece] = []
     @State private var selectedPiece: Piece? = nil
     @State private var isRedTurn = true
+    @State var moveTimer: Timer? = nil
+    @State var timeRemaining = 60.0
+    
+    let countdownTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    var timeString: String {
+        let minutes = Int(timeRemaining) / 60
+        let seconds = Int(timeRemaining) % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
     
     var body: some View {
         ZStack {
@@ -20,11 +29,29 @@ struct CheckersView: View {
                 .resizable()
                 .ignoresSafeArea()
             
+            Text(timeString)
+                .frame(width:100, height:100)
+                .background(timeRemaining <= 10 ? .red: .black)
+                .font(.largeTitle)
+                .fontWeight(.black)
+                .cornerRadius(30)
+                .foregroundColor(.white)
+                .offset(x: 130, y: -370)
+                .onReceive(countdownTimer) { _ in
+                    if timeRemaining > 0 {
+                        timeRemaining -= 1
+                    }
+                }
+            Text(isRedTurn ? "Blue's Turn" : "Red's Turn")
+                .frame(width:300, height:180)
+                .background(Color.white)
+                .foregroundColor(isRedTurn ? .blue: .red)
+                .font(.largeTitle)
+                .fontWeight(.black)
+                .dynamicTypeSize(.xxxLarge)
+                .cornerRadius(30)
+                .offset(x:0, y:300)
             VStack {
-                
-                Text(isRedTurn ? "Blue's Turn" : "Red's Turn")
-                    .font(.title)
-                    .foregroundColor(.white)
                 
                 //BOARD
                 LazyVGrid(
@@ -42,6 +69,7 @@ struct CheckersView: View {
                             Rectangle()
                                 .fill((row + col) % 2 == 0 ? Color.white : Color.black)
                                 .frame(width:45, height: 45)
+                                .offset(x:0,y:26)
                             
                             //PIECES
                             if let piece = pieceAt(row: row, col: col) {
@@ -50,14 +78,15 @@ struct CheckersView: View {
                                     .resizable()
                                     .frame(width: 1, height:1)
                                     .scaleEffect(70)
-                                    .offset(x:0, y:-5)
+                                    .offset(x:0, y:20)
                                  
                             }
                             
                             //HIGHLIGHT
                             if selectedPiece?.row == row && selectedPiece?.col == col {
                                 Rectangle()
-                                    .stroke(Color.pink, lineWidth: 3)
+                                    .stroke(Color.green, lineWidth: 3)
+                                        .offset(x:0, y:25)
                             }
                         }
                         .onTapGesture {
