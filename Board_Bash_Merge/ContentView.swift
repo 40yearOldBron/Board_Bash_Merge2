@@ -6,12 +6,24 @@
 //
 import SwiftUI
 struct ContentView: View {
+    @State private var xP = 0.0
+    @State private var level = 0
     var body: some View {
         NavigationStack {
             ZStack{
                 Image("HomeScreenBG")
                     .ignoresSafeArea()
                 
+                ProgressView(value: xP)
+                                   .padding(.bottom, 225.0)
+                                   .frame(width: 350.0)
+
+                Text("Level \(level)")
+                    .font(.body)
+                    .fontWeight(.black)
+                    .foregroundColor(Color.white)
+                    .padding(.bottom,194.0)
+                    
                 VStack{
                     HStack{
                         Button("Settings") {
@@ -67,6 +79,12 @@ struct ContentView: View {
                     }
                     .offset(x:0.0 ,y:250.0)
                 }
+            }
+        }
+        .onChange(of: xP) { oldValue, newValue in
+            if newValue >= 100 {
+                level += 1
+                xP = 0
             }
         }
     }

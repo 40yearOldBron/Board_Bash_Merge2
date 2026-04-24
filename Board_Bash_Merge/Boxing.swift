@@ -10,8 +10,12 @@ struct Boxing: View {
     let Y = "PounchFixed"
     let Z = "KickFixed"
     @State var change = "Fighting x 12"
-    @State var timeRemaining = 60.0
+
+ 
     @State var timerFinished = false
+
+    @State var timeRemaining = 30.0
+
     @State var characterX: CGFloat = 0.0
     @State var characterY: CGFloat = -75
     @State var isAnimating = false   // for punch/kick animations
@@ -66,7 +70,7 @@ struct Boxing: View {
             Text(timeString)
                 .font(.largeTitle)
                 .fontWeight(.black)
-                .foregroundColor(.white)
+                .foregroundColor(timeRemaining <= 5 ? .red : .white)
                 .offset(x: 0, y: -335)
                 .onReceive(countdownTimer) { _ in
                     if timeRemaining > 0 {

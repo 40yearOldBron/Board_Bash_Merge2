@@ -12,7 +12,7 @@ struct CheckersView: View {
     @State private var selectedPiece: Piece? = nil
     @State private var isRedTurn = true
     @State var moveTimer: Timer? = nil
-    @State var timeRemaining = 60.0
+    @State var timeRemaining = 30.0
     @State var timerFinished = false
     
     let countdownTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -32,7 +32,7 @@ struct CheckersView: View {
             
             Text(timeString)
                 .frame(width:100, height:100)
-                .background(timeRemaining <= 10 ? .red: .black)
+                .background(timeRemaining <= 5 ? .red: .black)
                 .font(.largeTitle)
                 .fontWeight(.black)
                 .cornerRadius(30)
