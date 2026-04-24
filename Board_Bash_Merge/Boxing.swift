@@ -11,6 +11,7 @@ struct Boxing: View {
     let Z = "KickFixed"
     @State var change = "Fighting x 12"
     @State var timeRemaining = 60.0
+    @State var timerFinished = false
     @State var characterX: CGFloat = 0.0
     @State var characterY: CGFloat = -75
     @State var isAnimating = false   // for punch/kick animations
@@ -70,7 +71,12 @@ struct Boxing: View {
                 .onReceive(countdownTimer) { _ in
                     if timeRemaining > 0 {
                         timeRemaining -= 1
+                    } else {
+                        timerFinished = true
                     }
+                }
+                .fullScreenCover(isPresented: $timerFinished) {
+                    CheckersView()
                 }
             Text("100")
                 .background(Color.white)

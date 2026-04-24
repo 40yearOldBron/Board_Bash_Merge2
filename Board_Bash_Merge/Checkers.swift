@@ -13,6 +13,7 @@ struct CheckersView: View {
     @State private var isRedTurn = true
     @State var moveTimer: Timer? = nil
     @State var timeRemaining = 60.0
+    @State var timerFinished = false
     
     let countdownTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     var timeString: String {
@@ -40,8 +41,14 @@ struct CheckersView: View {
                 .onReceive(countdownTimer) { _ in
                     if timeRemaining > 0 {
                         timeRemaining -= 1
+                    } else {
+                        timerFinished = true
                     }
                 }
+                .fullScreenCover(isPresented: $timerFinished) {
+                    Boxing()
+                }
+            
             Text(isRedTurn ? "Blue's Turn" : "Red's Turn")
                 .frame(width:300, height:180)
                 .background(Color.white)
