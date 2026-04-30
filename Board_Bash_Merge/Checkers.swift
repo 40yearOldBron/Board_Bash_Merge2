@@ -42,7 +42,7 @@ struct CheckersView: View {
                     }
                 }
                 .fullScreenCover(isPresented: $timerFinished) {
-                    Boxing()
+                    Boxing(rand: 0, xP: .constant(0))
                 }
             
             Text(isRedTurn ? "Blue's Turn" : "Red's Turn")

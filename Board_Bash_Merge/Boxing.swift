@@ -9,8 +9,13 @@ struct Boxing: View {
     let X = "Fighting x 12"
     let Y = "PounchFixed"
     let Z = "KickFixed"
+    @State var win = false
+    @State var rand: Int
     @State var change = "Fighting x 12"
-
+    @State var badChange = "badStance"
+    @State var badDam = 100
+    @State var goDam = 100
+    @Binding var xP: Double
  
     @State var timerFinished = false
 
@@ -18,6 +23,8 @@ struct Boxing: View {
 
     @State var characterX: CGFloat = 0.0
     @State var characterY: CGFloat = -75
+    @State var BcharacterX: CGFloat = 0.0
+    @State var BcharacterY: CGFloat = -75
     @State var isAnimating = false   // for punch/kick animations
     @State var isJumping = false     // ✅ separate jump control
     @State var moveTimer: Timer? = nil
@@ -30,6 +37,11 @@ struct Boxing: View {
         let seconds = Int(timeRemaining) % 60
         return String(format: "%d:%02d", minutes, seconds)
     }
+    /*
+    if badDam <= 0 {
+        win = true
+    }
+    */
     func playAnimation(_ imageName: String) {
         guard !isAnimating else { return }
         isAnimating = true
@@ -51,6 +63,11 @@ struct Boxing: View {
             }
             isJumping = false
         }
+    }
+    func Damaged() -> Int {
+        let value = Int.random(in: 3...15)
+        rand = value
+        return value
     }
     func startMoving(direction: CGFloat) {
         stopMoving()
@@ -79,16 +96,19 @@ struct Boxing: View {
                         timerFinished = true
                     }
                 }
-                .fullScreenCover(isPresented: $timerFinished) {
+  /*
+               .fullScreenCover(isPresented: $timerFinished) {
                     CheckersView()
                 }
-            Text("100")
+   */
+            
+            Text("\(badDam)")
                 .background(Color.white)
                 .font(.largeTitle)
                 .fontWeight(.bold)
                 .foregroundColor(.green)
                 .offset(x: 155, y: -335)
-            Text("100")
+            Text("\(goDam)")
                 .background(Color.white)
                 .font(.largeTitle)
                 .fontWeight(.bold)
@@ -99,7 +119,12 @@ struct Boxing: View {
                 .frame(width: 100, height: 200)
                 .scaleEffect(0.75)
                 .offset(x: characterX, y: characterY) // ✅ uses Y
-            ///////////////////////////////////////////////////////////////////////
+            /////////////////////////////////////////////////////////////////////
+            
+            Image(badChange)
+                .frame(width: 100, height: 200.0)
+                    .scaleEffect(0.75)
+                    .offset(x: BcharacterX, y: BcharacterY)
             VStack {
                 HStack {
                     Button("SP1") {}
@@ -181,5 +206,5 @@ struct Boxing: View {
     }
 }
 #Preview {
-    Boxing()
+    Boxing(rand: 0, xP: .constant(0))
 }
