@@ -1,21 +1,17 @@
-//
-//  Checkers.swift
-//  Board_Bash_Merge
-//
-//  Created by 64011955 on 4/22/26.
-//
 import SwiftUI
+
 struct CheckersView: View {
     
     // 🧠 GAME STATE
     @State private var pieces: [Piece] = []
-    @State private var selectedPiece: Piece? = nil
+    @State private var selectedPieceID: UUID? = nil
     @State private var isRedTurn = true
     @State var moveTimer: Timer? = nil
     @State var timeRemaining = 30.0
     @State var timerFinished = false
     
     let countdownTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    
     var timeString: String {
         let minutes = Int(timeRemaining) / 60
         let seconds = Int(timeRemaining) % 60
@@ -58,6 +54,7 @@ struct CheckersView: View {
                 .dynamicTypeSize(.xxxLarge)
                 .cornerRadius(30)
                 .offset(x:0, y:300)
+            
             VStack {
                 
                 //BOARD
@@ -72,35 +69,38 @@ struct CheckersView: View {
                         
                         ZStack {
                             
-                            //TILE COLOR
+                            // TILE
                             Rectangle()
                                 .fill((row + col) % 2 == 0 ? Color.white : Color.black)
                                 .frame(width:45, height: 45)
                                 .offset(x:0,y:26)
                             
-                            //PIECES
+                            // PIECE
                             if let piece = pieceAt(row: row, col: col) {
-                                
                                 Image(piece.isRed ? "BlueHappyChecker" : "RedMadChecker")
                                     .resizable()
                                     .frame(width: 1, height:1)
                                     .scaleEffect(70)
                                     .offset(x:0, y:20)
-                                 
                             }
                             
-                            //HIGHLIGHT
-                            if selectedPiece?.row == row && selectedPiece?.col == col {
+                            // HIGHLIGHT (FIXED)
+                            if let selectedID = selectedPieceID,
+                               let selected = pieces.first(where: { $0.id == selectedID }),
+                               selected.row == row && selected.col == col {
+                                
                                 Rectangle()
                                     .stroke(Color.green, lineWidth: 3)
-                                        .offset(x:0, y:25)
+                                    .offset(x:0, y:25)
                             }
                         }
+                        // TAP FIXED (moved outside broken if)
                         .onTapGesture {
                             handleTap(row: row, col: col)
                         }
                     }
                 }
+                // GRID FRAME FIXED (moved here)
                 .frame(width: 360, height: 375)
                 .offset(x:2,y:-20)
             }
@@ -109,8 +109,6 @@ struct CheckersView: View {
             setupBoard()
         }
     }
-    
-       
     
     //PIECE MODEL
     struct Piece: Identifiable {
@@ -153,19 +151,22 @@ struct CheckersView: View {
         // Select piece
         if let piece = pieceAt(row: row, col: col),
            piece.isRed == isRedTurn {
-            selectedPiece = piece
+            selectedPieceID = piece.id
             return
         }
         
         // Move piece
-        guard let selected = selectedPiece else { return }
+        guard let selectedID = selectedPieceID,
+              let selectedIndex = pieces.firstIndex(where: { $0.id == selectedID }) else { return }
+        
+        let selected = pieces[selectedIndex]
         
         if isValidMove(from: selected, toRow: row, toCol: col) {
             movePiece(selected, toRow: row, toCol: col)
             isRedTurn.toggle()
         }
         
-        selectedPiece = nil
+        selectedPieceID = nil
     }
     
     //VALID MOVE
@@ -224,6 +225,7 @@ struct CheckersView: View {
         }
     }
 }
+
 #Preview {
     CheckersView()
 }
