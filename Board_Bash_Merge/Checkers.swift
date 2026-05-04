@@ -21,7 +21,6 @@ struct CheckersView: View {
     var body: some View {
         ZStack {
             
-            //BACKGROUND
             Image("CheckersScreenBG")
                 .resizable()
                 .ignoresSafeArea()
@@ -41,9 +40,6 @@ struct CheckersView: View {
                         timerFinished = true
                     }
                 }
-                .fullScreenCover(isPresented: $timerFinished) {
-                    Boxing(rand: 0, xP: .constant(0))
-                }
             
             Text(isRedTurn ? "Blue's Turn" : "Red's Turn")
                 .frame(width:300, height:180)
@@ -57,7 +53,6 @@ struct CheckersView: View {
             
             VStack {
                 
-                //BOARD
                 LazyVGrid(
                     columns: Array(repeating: GridItem(.flexible()), count: 8),
                     spacing: 0
@@ -69,38 +64,41 @@ struct CheckersView: View {
                         
                         ZStack {
                             
-                            // TILE
+                            Rectangle()
+                                .stroke(Color.black, lineWidth: 5)
+                                .offset(x:0, y:25)
+                            
                             Rectangle()
                                 .fill((row + col) % 2 == 0 ? Color.white : Color.black)
                                 .frame(width:45, height: 45)
                                 .offset(x:0,y:26)
                             
-                            // PIECE
                             if let piece = pieceAt(row: row, col: col) {
-                                Image(piece.isRed ? "BlueHappyChecker" : "RedMadChecker")
+                                Image(
+                                    piece.isKing
+                                    ? (piece.isRed ? "BlueKing" : "RedKing")
+                                    : (piece.isRed ? "BlueHappyChecker" : "RedMadChecker")
+                                )
                                     .resizable()
                                     .frame(width: 1, height:1)
                                     .scaleEffect(70)
                                     .offset(x:0, y:20)
                             }
                             
-                            // HIGHLIGHT (FIXED)
                             if let selectedID = selectedPieceID,
                                let selected = pieces.first(where: { $0.id == selectedID }),
                                selected.row == row && selected.col == col {
-                                
+                               
                                 Rectangle()
-                                    .stroke(Color.green, lineWidth: 3)
+                                    .stroke(Color.green, lineWidth: 5)
                                     .offset(x:0, y:25)
                             }
                         }
-                        // TAP FIXED (moved outside broken if)
                         .onTapGesture {
                             handleTap(row: row, col: col)
                         }
                     }
                 }
-                // GRID FRAME FIXED (moved here)
                 .frame(width: 360, height: 375)
                 .offset(x:2,y:-20)
             }
@@ -110,7 +108,6 @@ struct CheckersView: View {
         }
     }
     
-    //PIECE MODEL
     struct Piece: Identifiable {
         let id = UUID()
         var row: Int
@@ -119,7 +116,6 @@ struct CheckersView: View {
         var isKing: Bool = false
     }
     
-    //SETUP BOARD
     func setupBoard() {
         pieces.removeAll()
         
@@ -140,36 +136,40 @@ struct CheckersView: View {
         }
     }
     
-    // FIND PIECE
     func pieceAt(row: Int, col: Int) -> Piece? {
         pieces.first { $0.row == row && $0.col == col }
     }
     
-    //TAP
     func handleTap(row: Int, col: Int) {
         
-        // Select piece
         if let piece = pieceAt(row: row, col: col),
            piece.isRed == isRedTurn {
             selectedPieceID = piece.id
             return
         }
         
-        // Move piece
         guard let selectedID = selectedPieceID,
-              let selectedIndex = pieces.firstIndex(where: { $0.id == selectedID }) else { return }
-        
-        let selected = pieces[selectedIndex]
+              let selected = pieces.first(where: { $0.id == selectedID }) else { return }
         
         if isValidMove(from: selected, toRow: row, toCol: col) {
-            movePiece(selected, toRow: row, toCol: col)
+            
+            let wasCapture = abs(row - selected.row) == 2
+            
+            movePiece(by: selectedID, toRow: row, toCol: col)
+            
+            if let updated = pieces.first(where: { $0.id == selectedID }),
+               wasCapture && canCaptureAgain(piece: updated) {
+                selectedPieceID = updated.id
+                return
+            }
+            
             isRedTurn.toggle()
         }
         
         selectedPieceID = nil
     }
     
-    //VALID MOVE
+    // 🔥 FIXED: no backward capture for normal pieces
     func isValidMove(from piece: Piece, toRow: Int, toCol: Int) -> Bool {
         
         if pieceAt(row: toRow, col: toCol) != nil { return false }
@@ -177,14 +177,18 @@ struct CheckersView: View {
         let rowDiff = toRow - piece.row
         let colDiff = abs(toCol - piece.col)
         
-        // Normal move
         if abs(rowDiff) == 1 && colDiff == 1 {
             if piece.isKing { return true }
             return piece.isRed ? rowDiff == -1 : rowDiff == 1
         }
         
-        // Jump
         if abs(rowDiff) == 2 && colDiff == 2 {
+            
+            if !piece.isKing {
+                if piece.isRed && rowDiff != -2 { return false }
+                if !piece.isRed && rowDiff != 2 { return false }
+            }
+            
             let midRow = (piece.row + toRow) / 2
             let midCol = (piece.col + toCol) / 2
             
@@ -197,31 +201,62 @@ struct CheckersView: View {
         return false
     }
     
-    //  MOVE PIECE
-    func movePiece(_ piece: Piece, toRow: Int, toCol: Int) {
+
+    func canCaptureAgain(piece: Piece) -> Bool {
         
-        guard let index = pieces.firstIndex(where: { $0.id == piece.id }) else { return }
+        let directions = piece.isKing
+            ? [(-1,-1), (-1,1), (1,-1), (1,1)]
+            : piece.isRed
+                ? [(-1,-1), (-1,1)]
+                : [(1,-1), (1,1)]
         
+        for dir in directions {
+            let midRow = piece.row + dir.0
+            let midCol = piece.col + dir.1
+            
+            let endRow = piece.row + dir.0 * 2
+            let endCol = piece.col + dir.1 * 2
+            
+            if endRow < 0 || endRow > 7 || endCol < 0 || endCol > 7 {
+                continue
+            }
+            
+            if let enemy = pieceAt(row: midRow, col: midCol),
+               enemy.isRed != piece.isRed,
+               pieceAt(row: endRow, col: endCol) == nil {
+                return true
+            }
+        }
+        
+        return false
+    }
+    
+    func movePiece(by id: UUID, toRow: Int, toCol: Int) {
+        
+        guard let index = pieces.firstIndex(where: { $0.id == id }) else { return }
+        
+        let piece = pieces[index]
         let rowDiff = abs(toRow - piece.row)
         
-        // Remove captured piece
         if rowDiff == 2 {
             let midRow = (piece.row + toRow) / 2
             let midCol = (piece.col + toCol) / 2
             
-            pieces.removeAll {
+            if let capturedIndex = pieces.firstIndex(where: {
                 $0.row == midRow && $0.col == midCol
+            }) {
+                pieces.remove(at: capturedIndex)
             }
         }
         
-        // Move
-        pieces[index].row = toRow
-        pieces[index].col = toCol
+        guard let newIndex = pieces.firstIndex(where: { $0.id == id }) else { return }
         
-        // King
-        if (pieces[index].isRed && toRow == 0) ||
-           (!pieces[index].isRed && toRow == 7) {
-            pieces[index].isKing = true
+        pieces[newIndex].row = toRow
+        pieces[newIndex].col = toCol
+        
+        if (pieces[newIndex].isRed && toRow == 0) ||
+           (!pieces[newIndex].isRed && toRow == 7) {
+            pieces[newIndex].isKing = true
         }
     }
 }
