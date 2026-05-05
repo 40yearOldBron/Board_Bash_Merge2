@@ -140,6 +140,14 @@ struct Boxing: View {
                         timerFinished = true
                     }
                 }
+                .fullScreenCover(isPresented: $timerFinished) {
+                    CheckersView()
+                        .onDisappear {
+                            // 🔁 reset boxing timer
+                            timeRemaining = 30
+                            timerFinished = false
+                        }
+                }
 
             // HEALTH
             Text("\(badDam)")
