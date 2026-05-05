@@ -37,10 +37,19 @@ struct Boxing: View {
     @State private var canPunch = true
     @State private var canKick = true
     @State private var audioPlayer: AVAudioPlayer?
-    
+
+    // MARK: - AI State
+    @State private var aiMoveTimer: Timer? = nil
+    @State private var aiActionTimer: Timer? = nil
+    @State private var aiIsAnimating = false
+    @State private var aiIsBlocking = false
+    @State private var aiMoveDirection: CGFloat = 0
+    @State private var aiMoveTimer2: Timer? = nil  // smooth movement timer
+
     let minX: CGFloat = -150
     let maxX: CGFloat = 150
     let moveStep: CGFloat = 6
+    let aiCloseRange: CGFloat = 120  // distance at which AI starts attacking
 
     let countdownTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -49,20 +58,24 @@ struct Boxing: View {
         let seconds = Int(timeRemaining) % 60
         return String(format: "%d:%02d", minutes, seconds)
     }
-    // sounds
+
+    // Distance between player and AI opponent
+    var distanceBetweenFighters: CGFloat {
+        abs(characterX - BcharacterX)
+    }
+
+    // MARK: - Sound
     func playSound(_ name: String, ext: String = "mp3") {
         guard let url = Bundle.main.url(forResource: name, withExtension: ext) else { return }
         audioPlayer = try? AVAudioPlayer(contentsOf: url)
         audioPlayer?.play()
     }
-    
-    // MARK: - Animation
+
+    // MARK: - Player Animation
     func playAnimation(_ imageName: String) {
         if isBlocking { return }
-
         change = imageName
         isAnimating = true
-
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             if !isBlocking {
                 change = X
@@ -71,15 +84,27 @@ struct Boxing: View {
         }
     }
 
+    // MARK: - AI Animation
+    func playAIAnimation(_ imageName: String) {
+        guard !aiIsAnimating else { return }
+        aiIsAnimating = true
+        badChange = imageName
+        let duration: Double = imageName == "badKick" ? 0.8 : 0.5
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+            if !aiIsBlocking {
+                badChange = "badStance"
+            }
+            aiIsAnimating = false
+        }
+    }
+
     // MARK: - Jump
     func jump() {
         guard !isJumping && !isBlocking else { return }
-
         isJumping = true
         withAnimation(.easeOut(duration: 0.2)) {
             characterY -= 100
         }
-
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             withAnimation(.easeIn(duration: 0.2)) {
                 characterY += 100
@@ -88,7 +113,7 @@ struct Boxing: View {
         }
     }
 
-    // MARK: - Movement
+    // MARK: - Player Movement
     func startMoving(direction: CGFloat) {
         stopMoving()
         moveTimer = Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { _ in
@@ -101,7 +126,7 @@ struct Boxing: View {
         moveTimer = nil
     }
 
-    // MARK: - Punch
+    // MARK: - Player Attacks
     func doPunch() {
         guard canPunch else { return }
         canPunch = false
@@ -111,7 +136,6 @@ struct Boxing: View {
         }
     }
 
-    // MARK: - Kick
     func doKick() {
         guard canKick else { return }
         canKick = false
@@ -119,6 +143,102 @@ struct Boxing: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             canKick = true
         }
+    }
+
+    // MARK: - AI Brain
+    func startAI() {
+        // Smooth movement loop (runs every 0.03s like the player)
+        aiMoveTimer2 = Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { _ in
+            guard aiMoveDirection != 0 else { return }
+            BcharacterX = min(max(BcharacterX + aiMoveDirection * 4, minX), maxX)
+        }
+
+        // Decision loop — AI picks what to do every 0.4–0.9s
+        scheduleNextAIDecision()
+    }
+
+    func scheduleNextAIDecision() {
+        let delay = Double.random(in: 0.4...0.9)
+        aiActionTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { _ in
+            performAIDecision()
+            scheduleNextAIDecision()
+        }
+    }
+
+    func performAIDecision() {
+        let isClose = distanceBetweenFighters < aiCloseRange
+
+        if isClose {
+            // When close: 40% attack, 25% block, 20% dodge back, 15% idle
+            let roll = Int.random(in: 0...99)
+            switch roll {
+            case 0...39:
+                aiDoAttack()
+            case 40...64:
+                aiDoBlock()
+            case 65...84:
+                // Dodge away from player
+                let dodgeDir: CGFloat = BcharacterX > characterX ? 1 : -1
+                aiMoveDirection = dodgeDir
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double.random(in: 0.2...0.5)) {
+                    aiMoveDirection = 0
+                }
+            default:
+                aiMoveDirection = 0
+            }
+        } else {
+            // When far: 60% move toward player, 25% random drift, 15% idle
+            let roll = Int.random(in: 0...99)
+            switch roll {
+            case 0...59:
+                // Advance toward player
+                aiMoveDirection = BcharacterX > characterX ? -1 : 1
+                let moveDur = Double.random(in: 0.3...0.7)
+                DispatchQueue.main.asyncAfter(deadline: .now() + moveDur) {
+                    aiMoveDirection = 0
+                }
+            case 60...84:
+                // Random lateral drift
+                aiMoveDirection = Bool.random() ? 1 : -1
+                let moveDur = Double.random(in: 0.2...0.5)
+                DispatchQueue.main.asyncAfter(deadline: .now() + moveDur) {
+                    aiMoveDirection = 0
+                }
+            default:
+                aiMoveDirection = 0
+            }
+        }
+    }
+
+    func aiDoAttack() {
+        guard !aiIsAnimating && !aiIsBlocking else { return }
+        // 55% punch, 45% kick
+        if Bool.random() {
+            playAIAnimation("badPunch")   // use your actual bad-guy punch image name
+        } else {
+            playAIAnimation("badKick")    // use your actual bad-guy kick image name
+        }
+    }
+
+    func aiDoBlock() {
+        guard !aiIsAnimating else { return }
+        aiIsBlocking = true
+        badChange = "badBlock"            // use your actual bad-guy block image name
+        let blockDur = Double.random(in: 0.4...1.0)
+        DispatchQueue.main.asyncAfter(deadline: .now() + blockDur) {
+            aiIsBlocking = false
+            badChange = "badStance"
+        }
+    }
+
+    func stopAI() {
+        aiMoveTimer?.invalidate()
+        aiMoveTimer = nil
+        aiMoveTimer2?.invalidate()
+        aiMoveTimer2 = nil
+        aiActionTimer?.invalidate()
+        aiActionTimer = nil
+        aiMoveDirection = 0
     }
 
     var body: some View {
@@ -138,6 +258,7 @@ struct Boxing: View {
                         timeRemaining -= 1
                     } else {
                         timerFinished = true
+                        stopAI()
                     }
                 }
                 .fullScreenCover(isPresented: $timerFinished) {
@@ -203,12 +324,10 @@ struct Boxing: View {
                                     if pressStartTime == nil {
                                         pressStartTime = Date()
                                     }
-
                                     if let start = pressStartTime,
                                        Date().timeIntervalSince(start) > 0.25,
                                        !isBlocking,
                                        canBlock {
-
                                         isBlocking = true
                                         change = A
                                     }
@@ -216,16 +335,13 @@ struct Boxing: View {
                                 .onEnded { _ in
                                     let duration = Date().timeIntervalSince(pressStartTime ?? Date())
                                     pressStartTime = nil
-
                                     if isBlocking {
                                         isBlocking = false
                                         change = X
-
                                         canBlock = false
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                                             canBlock = true
                                         }
-
                                     } else if duration < 0.1 {
                                         jump()
                                         playAnimation(X)
@@ -282,11 +398,17 @@ struct Boxing: View {
             .opacity(0.08)
         }
         .onAppear {
+            // Player idle walk animation
             Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { _ in
                 if !isAnimating && !isBlocking {
                     change = (change == X) ? "Walk" : X
                 }
             }
+            // Start AI
+            startAI()
+        }
+        .onDisappear {
+            stopAI()
         }
     }
 }
