@@ -38,18 +38,21 @@ struct Boxing: View {
     @State private var canKick = true
     @State private var audioPlayer: AVAudioPlayer?
 
+    // MARK: - Hitbox Visibility (debug toggle)
+    @State private var showHitboxes = true
+
     // MARK: - AI State
     @State private var aiMoveTimer: Timer? = nil
     @State private var aiActionTimer: Timer? = nil
     @State private var aiIsAnimating = false
     @State private var aiIsBlocking = false
     @State private var aiMoveDirection: CGFloat = 0
-    @State private var aiMoveTimer2: Timer? = nil  // smooth movement timer
+    @State private var aiMoveTimer2: Timer? = nil
 
     let minX: CGFloat = -150
     let maxX: CGFloat = 150
     let moveStep: CGFloat = 6
-    let aiCloseRange: CGFloat = 120  // distance at which AI starts attacking
+    let aiCloseRange: CGFloat = 120
 
     let countdownTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -59,9 +62,60 @@ struct Boxing: View {
         return String(format: "%d:%02d", minutes, seconds)
     }
 
-    // Distance between player and AI opponent
     var distanceBetweenFighters: CGFloat {
         abs(characterX - BcharacterX)
+    }
+
+    // MARK: - Hitbox Rects (in world space, relative to character center)
+    func playerBodyRect() -> CGRect {
+        CGRect(x: characterX - 100, y: characterY - 40, width: 110, height: 150)
+    }
+
+    func aiBodyRect() -> CGRect {
+        CGRect(x: BcharacterX + 25, y: BcharacterY - 40, width: 110, height: 150)
+    }
+
+    func playerPunchHitbox() -> CGRect {
+        let facingRight = characterX < BcharacterX
+        let xOffset: CGFloat = facingRight ? 50 : -20
+        return CGRect(x: characterX + xOffset + 45, y: characterY, width: 60, height: 30)
+    }
+
+    func playerKickHitbox() -> CGRect {
+        let facingRight = characterX < BcharacterX
+        let xOffset: CGFloat = facingRight ? 20 : -60
+        return CGRect(x: characterX + xOffset + 50, y: characterY + 50, width: 60, height: 30)
+    }
+
+    func aiPunchHitbox() -> CGRect {
+        let facingLeft = BcharacterX > characterX
+        let xOffset: CGFloat = facingLeft ? -55 : 20
+        return CGRect(x: BcharacterX + xOffset + 30, y: BcharacterY, width: 60, height: 30)
+    }
+
+    func aiKickHitbox() -> CGRect {
+        let facingLeft = BcharacterX > characterX
+        let xOffset: CGFloat = facingLeft ? -60 : 20
+        return CGRect(x: BcharacterX + xOffset + 40, y: BcharacterY + 45, width: 60, height: 30)
+    }
+
+    // MARK: - Hit Detection
+    func checkPlayerHitOnAI(isKick: Bool) {
+        let attackBox = isKick ? playerKickHitbox() : playerPunchHitbox()
+        let targetBox = aiBodyRect()
+        if attackBox.intersects(targetBox) {
+            let dmg = isKick ? 12 : 8
+            badDam = max(0, badDam - (aiIsBlocking ? dmg / 2 : dmg))
+        }
+    }
+
+    func checkAIHitOnPlayer(isKick: Bool) {
+        let attackBox = isKick ? aiKickHitbox() : aiPunchHitbox()
+        let targetBox = playerBodyRect()
+        if attackBox.intersects(targetBox) {
+            let dmg = isKick ? 10 : 7
+            goDam = max(0, goDam - (isBlocking ? dmg / 2 : dmg))
+        }
     }
 
     // MARK: - Sound
@@ -102,13 +156,9 @@ struct Boxing: View {
     func jump() {
         guard !isJumping && !isBlocking else { return }
         isJumping = true
-        withAnimation(.easeOut(duration: 0.2)) {
-            characterY -= 100
-        }
+        withAnimation(.easeOut(duration: 0.2)) { characterY -= 100 }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            withAnimation(.easeIn(duration: 0.2)) {
-                characterY += 100
-            }
+            withAnimation(.easeIn(duration: 0.2)) { characterY += 100 }
             isJumping = false
         }
     }
@@ -131,29 +181,28 @@ struct Boxing: View {
         guard canPunch else { return }
         canPunch = false
         playAnimation(Y)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            canPunch = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            checkPlayerHitOnAI(isKick: false)
         }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { canPunch = true }
     }
 
     func doKick() {
         guard canKick else { return }
         canKick = false
         playAnimation(Z)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            canKick = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            checkPlayerHitOnAI(isKick: true)
         }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { canKick = true }
     }
 
     // MARK: - AI Brain
     func startAI() {
-        // Smooth movement loop (runs every 0.03s like the player)
         aiMoveTimer2 = Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { _ in
             guard aiMoveDirection != 0 else { return }
             BcharacterX = min(max(BcharacterX + aiMoveDirection * 4, minX), maxX)
         }
-
-        // Decision loop — AI picks what to do every 0.4–0.9s
         scheduleNextAIDecision()
     }
 
@@ -167,63 +216,52 @@ struct Boxing: View {
 
     func performAIDecision() {
         let isClose = distanceBetweenFighters < aiCloseRange
-
         if isClose {
-            // When close: 40% attack, 25% block, 20% dodge back, 15% idle
             let roll = Int.random(in: 0...99)
             switch roll {
-            case 0...39:
-                aiDoAttack()
-            case 40...64:
-                aiDoBlock()
+            case 0...39: aiDoAttack()
+            case 40...64: aiDoBlock()
             case 65...84:
-                // Dodge away from player
                 let dodgeDir: CGFloat = BcharacterX > characterX ? 1 : -1
                 aiMoveDirection = dodgeDir
                 DispatchQueue.main.asyncAfter(deadline: .now() + Double.random(in: 0.2...0.5)) {
                     aiMoveDirection = 0
                 }
-            default:
-                aiMoveDirection = 0
+            default: aiMoveDirection = 0
             }
         } else {
-            // When far: 60% move toward player, 25% random drift, 15% idle
             let roll = Int.random(in: 0...99)
             switch roll {
             case 0...59:
-                // Advance toward player
                 aiMoveDirection = BcharacterX > characterX ? -1 : 1
-                let moveDur = Double.random(in: 0.3...0.7)
-                DispatchQueue.main.asyncAfter(deadline: .now() + moveDur) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double.random(in: 0.3...0.7)) {
                     aiMoveDirection = 0
                 }
             case 60...84:
-                // Random lateral drift
                 aiMoveDirection = Bool.random() ? 1 : -1
-                let moveDur = Double.random(in: 0.2...0.5)
-                DispatchQueue.main.asyncAfter(deadline: .now() + moveDur) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double.random(in: 0.2...0.5)) {
                     aiMoveDirection = 0
                 }
-            default:
-                aiMoveDirection = 0
+            default: aiMoveDirection = 0
             }
         }
     }
 
     func aiDoAttack() {
         guard !aiIsAnimating && !aiIsBlocking else { return }
-        // 55% punch, 45% kick
-        if Bool.random() {
-            playAIAnimation("badPunch")   // use your actual bad-guy punch image name
-        } else {
-            playAIAnimation("badKick")    // use your actual bad-guy kick image name
+        let isKick = !Bool.random()
+        let animName = isKick ? "badKick" : "badPunch"
+        playAIAnimation(animName)
+        let hitDelay: Double = isKick ? 0.25 : 0.15
+        DispatchQueue.main.asyncAfter(deadline: .now() + hitDelay) {
+            checkAIHitOnPlayer(isKick: isKick)
         }
     }
 
     func aiDoBlock() {
         guard !aiIsAnimating else { return }
         aiIsBlocking = true
-        badChange = "badBlock"            // use your actual bad-guy block image name
+        badChange = "badBlock"
         let blockDur = Double.random(in: 0.4...1.0)
         DispatchQueue.main.asyncAfter(deadline: .now() + blockDur) {
             aiIsBlocking = false
@@ -232,13 +270,19 @@ struct Boxing: View {
     }
 
     func stopAI() {
-        aiMoveTimer?.invalidate()
-        aiMoveTimer = nil
-        aiMoveTimer2?.invalidate()
-        aiMoveTimer2 = nil
-        aiActionTimer?.invalidate()
-        aiActionTimer = nil
+        aiMoveTimer?.invalidate(); aiMoveTimer = nil
+        aiMoveTimer2?.invalidate(); aiMoveTimer2 = nil
+        aiActionTimer?.invalidate(); aiActionTimer = nil
         aiMoveDirection = 0
+    }
+
+    // MARK: - Hitbox View Helper
+    @ViewBuilder
+    func hitboxOverlay(rect: CGRect, color: Color) -> some View {
+        color.opacity(0.45)
+            .frame(width: rect.width, height: rect.height)
+            .border(color, width: 2)
+            .offset(x: rect.midX, y: rect.midY)
     }
 
     var body: some View {
@@ -264,7 +308,6 @@ struct Boxing: View {
                 .fullScreenCover(isPresented: $timerFinished) {
                     CheckersView()
                         .onDisappear {
-                            // 🔁 reset boxing timer
                             timeRemaining = 30
                             timerFinished = false
                         }
@@ -273,15 +316,13 @@ struct Boxing: View {
             // HEALTH
             Text("\(badDam)")
                 .background(Color.white)
-                .font(.largeTitle)
-                .fontWeight(.bold)
+                .font(.largeTitle).fontWeight(.bold)
                 .foregroundColor(.green)
                 .offset(x: 155, y: -335)
 
             Text("\(goDam)")
                 .background(Color.white)
-                .font(.largeTitle)
-                .fontWeight(.bold)
+                .font(.largeTitle).fontWeight(.bold)
                 .foregroundColor(.green)
                 .offset(x: -155, y: -335)
 
@@ -296,6 +337,38 @@ struct Boxing: View {
                 .frame(width: 100, height: 200)
                 .scaleEffect(0.75)
                 .offset(x: characterX, y: characterY)
+
+            // MARK: - HITBOXES
+            if showHitboxes {
+                // Player body hitbox
+                hitboxOverlay(rect: playerBodyRect(), color: .red)
+                // Player attack hitboxes
+                if change == Y {
+                    hitboxOverlay(rect: playerPunchHitbox(), color: .orange)
+                }
+                if change == Z {
+                    hitboxOverlay(rect: playerKickHitbox(), color: .orange)
+                }
+                // AI body hitbox
+                hitboxOverlay(rect: aiBodyRect(), color: Color(red: 1, green: 0.2, blue: 0.2))
+                // AI attack hitboxes
+                if badChange == "badPunch" {
+                    hitboxOverlay(rect: aiPunchHitbox(), color: .orange)
+                }
+                if badChange == "badKick" {
+                    hitboxOverlay(rect: aiKickHitbox(), color: .orange)
+                }
+            }
+
+            // DEBUG TOGGLE
+            Button(showHitboxes ? "Hide Hitboxes" : "Show Hitboxes") {
+                showHitboxes.toggle()
+            }
+            .padding(6)
+            .background(Color.black.opacity(0.5))
+            .foregroundColor(.white)
+            .cornerRadius(8)
+            .offset(x: 0, y: -280)
 
             // TOP BUTTONS
             VStack {
@@ -312,7 +385,6 @@ struct Boxing: View {
                         .offset(x: -65, y: 225)
                         .opacity(0.08)
 
-                    // MARK: - JUMP / BLOCK BUTTON
                     Text("Jump")
                         .frame(width: 60, height: 90)
                         .background(Color.gray)
@@ -321,13 +393,10 @@ struct Boxing: View {
                         .gesture(
                             DragGesture(minimumDistance: 0)
                                 .onChanged { _ in
-                                    if pressStartTime == nil {
-                                        pressStartTime = Date()
-                                    }
+                                    if pressStartTime == nil { pressStartTime = Date() }
                                     if let start = pressStartTime,
                                        Date().timeIntervalSince(start) > 0.25,
-                                       !isBlocking,
-                                       canBlock {
+                                       !isBlocking, canBlock {
                                         isBlocking = true
                                         change = A
                                     }
@@ -339,9 +408,7 @@ struct Boxing: View {
                                         isBlocking = false
                                         change = X
                                         canBlock = false
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                            canBlock = true
-                                        }
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { canBlock = true }
                                     } else if duration < 0.1 {
                                         jump()
                                         playAnimation(X)
@@ -381,35 +448,27 @@ struct Boxing: View {
             }
 
             // ATTACKS
-            Button("Kick") {
-                doKick()
-            }
-            .frame(width: 55, height: 100)
-            .background(canKick ? Color.gray : Color.red)
-            .offset(x: 120, y: 300)
-            .opacity(0.08)
+            Button("Kick") { doKick() }
+                .frame(width: 55, height: 100)
+                .background(canKick ? Color.gray : Color.red)
+                .offset(x: 120, y: 300)
+                .opacity(0.08)
 
-            Button("Punch") {
-                doPunch()
-            }
-            .frame(width: 55, height: 100)
-            .background(canPunch ? Color.gray : Color.red)
-            .offset(x: 177, y: 300)
-            .opacity(0.08)
+            Button("Punch") { doPunch() }
+                .frame(width: 55, height: 100)
+                .background(canPunch ? Color.gray : Color.red)
+                .offset(x: 177, y: 300)
+                .opacity(0.08)
         }
         .onAppear {
-            // Player idle walk animation
             Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { _ in
                 if !isAnimating && !isBlocking {
                     change = (change == X) ? "Walk" : X
                 }
             }
-            // Start AI
             startAI()
         }
-        .onDisappear {
-            stopAI()
-        }
+        .onDisappear { stopAI() }
     }
 }
 
