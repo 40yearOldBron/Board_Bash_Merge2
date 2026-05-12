@@ -29,30 +29,9 @@
 		E67ED9F42F9912A300C79A3F /* Board_Bash_MergeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Board_Bash_MergeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		E6223F7B2FB36AA600CBBB5F /* Exceptions for "Board_Bash_Merge" folder in "Board_Bash_MergeTests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"03 Cotton Candy Up In Here.mp3",
-			);
-			target = E67ED9E92F9912A300C79A3F /* Board_Bash_MergeTests */;
-		};
-		E6223F7C2FB36AA600CBBB5F /* Exceptions for "Board_Bash_Merge" folder in "Board_Bash_MergeUITests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"03 Cotton Candy Up In Here.mp3",
-			);
-			target = E67ED9F32F9912A300C79A3F /* Board_Bash_MergeUITests */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E67ED9DC2F9912A100C79A3F /* Board_Bash_Merge */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				E6223F7B2FB36AA600CBBB5F /* Exceptions for "Board_Bash_Merge" folder in "Board_Bash_MergeTests" target */,
-				E6223F7C2FB36AA600CBBB5F /* Exceptions for "Board_Bash_Merge" folder in "Board_Bash_MergeUITests" target */,
-			);
 			path = Board_Bash_Merge;
 			sourceTree = "<group>";
 		};

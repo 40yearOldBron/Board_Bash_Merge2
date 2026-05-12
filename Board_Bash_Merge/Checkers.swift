@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CheckersView: View {
 
+    // MARK: - STATE
     @State private var pieces: [Piece] = []
     @State private var selectedPieceID: UUID? = nil
     @State private var isRedTurn = true
@@ -217,6 +218,11 @@ struct CheckersView: View {
         }
 
         if abs(rowDiff) == 2 && colDiff == 2 {
+            // FIX: enforce forward direction for non-kings on capture moves
+            if !piece.isKing {
+                let allowedDirection = piece.isRed ? -1 : 1
+                guard rowDiff / 2 == allowedDirection else { return false }
+            }
             let midRow = (piece.row + toRow) / 2
             let midCol = (piece.col + toCol) / 2
             if let enemy = pieceAt(row: midRow, col: midCol), enemy.isRed != piece.isRed {
@@ -292,6 +298,7 @@ struct CheckersView: View {
 
         let cpuPieces = pieces.filter { !$0.isRed }
 
+        // Collect captures across ALL pieces first
         var captureMoves: [(UUID, Int, Int)] = []
         var normalMoves: [(UUID, Int, Int)] = []
 
@@ -299,8 +306,13 @@ struct CheckersView: View {
             for dest in captureDestinations(for: piece) {
                 captureMoves.append((piece.id, dest.0, dest.1))
             }
-            if captureMoves.isEmpty {
-                let dirs: [(Int,Int)] = piece.isKing
+        }
+
+        // Only collect normal moves if there are zero captures globally
+        var normalMoves: [(UUID, Int, Int)] = []
+        if captureMoves.isEmpty {
+            for piece in cpuPieces {
+                let dirs: [(Int, Int)] = piece.isKing
                     ? [(-1,-1),(-1,1),(1,-1),(1,1)]
                     : [(1,-1),(1,1)]
                 for dir in dirs {
@@ -322,10 +334,15 @@ struct CheckersView: View {
             return
         }
 
+        // Track whether the chosen move is a capture
+        let wasCapture = !captureMoves.isEmpty
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             movePiece(by: move.0, toRow: move.1, toCol: move.2)
 
-            if let movedPiece = pieces.first(where: { $0.id == move.0 }),
+            // Only chain if the move was actually a capture and another capture is available
+            if wasCapture,
+               let movedPiece = pieces.first(where: { $0.id == move.0 }),
                canCaptureAgain(piece: movedPiece) {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                     continueAICapture(pieceID: move.0)

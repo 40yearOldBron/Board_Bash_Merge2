@@ -14,7 +14,7 @@ struct Boxing: View {
     @State var badDam = 100
     @State var goDam = 100
     @Binding var xP: Double
-
+    @State var round = 1
     @State var timerFinished = false
     @State var timeRemaining = 30.0
 
@@ -342,34 +342,29 @@ struct Boxing: View {
             if showHitboxes {
                 // Player body hitbox
                 hitboxOverlay(rect: playerBodyRect(), color: .red)
+                    .opacity(0.0)
                 // Player attack hitboxes
                 if change == Y {
                     hitboxOverlay(rect: playerPunchHitbox(), color: .orange)
+                        .opacity(0.0)
                 }
                 if change == Z {
                     hitboxOverlay(rect: playerKickHitbox(), color: .orange)
+                        .opacity(0.0)
                 }
                 // AI body hitbox
                 hitboxOverlay(rect: aiBodyRect(), color: Color(red: 1, green: 0.2, blue: 0.2))
+                    .opacity(0.0)
                 // AI attack hitboxes
                 if badChange == "badPunch" {
                     hitboxOverlay(rect: aiPunchHitbox(), color: .orange)
+                        .opacity(0.0)
                 }
                 if badChange == "badKick" {
                     hitboxOverlay(rect: aiKickHitbox(), color: .orange)
+                        .opacity(0.0)
                 }
             }
-
-            // DEBUG TOGGLE
-            Button(showHitboxes ? "Hide Hitboxes" : "Show Hitboxes") {
-                showHitboxes.toggle()
-            }
-            .padding(6)
-            .background(Color.black.opacity(0.5))
-            .foregroundColor(.white)
-            .cornerRadius(8)
-            .offset(x: 0, y: -280)
-
             // TOP BUTTONS
             VStack {
                 HStack {
