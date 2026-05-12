@@ -2,7 +2,6 @@ import SwiftUI
 
 struct CheckersView: View {
 
-    // MARK: - STATE
     @State private var pieces: [Piece] = []
     @State private var selectedPieceID: UUID? = nil
     @State private var isRedTurn = true
@@ -169,12 +168,12 @@ struct CheckersView: View {
         }
     }
 
-    // MARK: - HELPERS
+  
     func pieceAt(row: Int, col: Int) -> Piece? {
         pieces.first { $0.row == row && $0.col == col }
     }
 
-    // MARK: - MOVE
+ 
     @discardableResult
     func movePiece(by id: UUID, toRow: Int, toCol: Int) -> Bool {
         guard let index = pieces.firstIndex(where: { $0.id == id }) else { return false }
@@ -203,7 +202,7 @@ struct CheckersView: View {
         return didCapture
     }
 
-    // MARK: - VALIDATION (same as yours, unchanged)
+ 
 
     func isValidMove(from piece: Piece, toRow: Int, toCol: Int) -> Bool {
         guard toRow >= 0, toRow < 8, toCol >= 0, toCol < 8 else { return false }
@@ -244,7 +243,7 @@ struct CheckersView: View {
         !captureDestinations(for: piece).isEmpty
     }
 
-    // MARK: - PLAYER
+   
     func handleTap(row: Int, col: Int) {
         guard !isMoving, isRedTurn else { return }
 
@@ -286,7 +285,7 @@ struct CheckersView: View {
         }
     }
 
-    // MARK: - AI
+
     func makeAIMove() {
         isMoving = true
         isTimerRunning = false   // ⬅️ pause timer

@@ -98,7 +98,7 @@ struct ContentView: View {
     
     // 🎵 PLAY
     func playMusic() {
-        guard let url = Bundle.main.url(forResource: "menuMusic", withExtension: "mp3") else {
+        guard let url = Bundle.main.url(forResource: "03 Cotton Candy Up In Here", withExtension: "mp3") else {
             print("music file not found")
             return
         }
