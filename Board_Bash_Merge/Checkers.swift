@@ -309,7 +309,7 @@ struct CheckersView: View {
         }
 
         // Only collect normal moves if there are zero captures globally
-        var normalMoves: [(UUID, Int, Int)] = []
+      
         if captureMoves.isEmpty {
             for piece in cpuPieces {
                 let dirs: [(Int, Int)] = piece.isKing
