@@ -70,6 +70,7 @@ struct ContentView: View {
                     NavigationLink(destination: CheckersView()
                         .onAppear {
                             stopMusic()   // ⛔ stop when entering game
+                            UserDefaults.standard.set(true, forKey: "gameInProgress")  // 🔄 reset on new game
                         }
                     ) {
                         Text("Play")

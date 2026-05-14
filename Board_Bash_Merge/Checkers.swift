@@ -118,7 +118,10 @@ struct CheckersView: View {
                 .offset(x: 2, y: -20)
             }
         }
-        .onAppear { loadGame() }
+        .onAppear {
+            loadGame()
+            isTimerRunning = true  // ▶️ resume timer when returning from boxing
+        }
     }
 
 
@@ -202,8 +205,6 @@ struct CheckersView: View {
         return didCapture
     }
 
- 
-
     func isValidMove(from piece: Piece, toRow: Int, toCol: Int) -> Bool {
         guard toRow >= 0, toRow < 8, toCol >= 0, toCol < 8 else { return false }
         guard pieceAt(row: toRow, col: toCol) == nil else { return false }
@@ -217,7 +218,6 @@ struct CheckersView: View {
         }
 
         if abs(rowDiff) == 2 && colDiff == 2 {
-            // FIX: enforce forward direction for non-kings on capture moves
             if !piece.isKing {
                 let allowedDirection = piece.isRed ? -1 : 1
                 guard rowDiff / 2 == allowedDirection else { return false }
@@ -248,7 +248,6 @@ struct CheckersView: View {
         !captureDestinations(for: piece).isEmpty
     }
 
-   
     func handleTap(row: Int, col: Int) {
         guard !isMoving, isRedTurn else { return }
 
@@ -293,11 +292,10 @@ struct CheckersView: View {
 
     func makeAIMove() {
         isMoving = true
-        isTimerRunning = false   // ⬅️ pause timer
+        isTimerRunning = true
 
         let cpuPieces = pieces.filter { !$0.isRed }
 
-        // Collect captures across ALL pieces first
         var captureMoves: [(UUID, Int, Int)] = []
         var normalMoves: [(UUID, Int, Int)] = []
 
@@ -307,8 +305,6 @@ struct CheckersView: View {
             }
         }
 
-        // Only collect normal moves if there are zero captures globally
-      
         if captureMoves.isEmpty {
             for piece in cpuPieces {
                 let dirs: [(Int, Int)] = piece.isKing
@@ -333,13 +329,11 @@ struct CheckersView: View {
             return
         }
 
-        // Track whether the chosen move is a capture
         let wasCapture = !captureMoves.isEmpty
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             movePiece(by: move.0, toRow: move.1, toCol: move.2)
 
-            // Only chain if the move was actually a capture and another capture is available
             if wasCapture,
                let movedPiece = pieces.first(where: { $0.id == move.0 }),
                canCaptureAgain(piece: movedPiece) {
@@ -349,7 +343,7 @@ struct CheckersView: View {
             } else {
                 isRedTurn = true
                 isMoving = false
-                isTimerRunning = true   // ⬅️ resume timer
+                isTimerRunning = true  // ▶️ resume timer
                 saveGame()
             }
         }
