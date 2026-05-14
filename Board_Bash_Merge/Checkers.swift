@@ -2,7 +2,6 @@ import SwiftUI
 
 struct CheckersView: View {
 
-    // MARK: - STATE
     @State private var pieces: [Piece] = []
     @State private var selectedPieceID: UUID? = nil
     @State private var isRedTurn = true
@@ -122,7 +121,7 @@ struct CheckersView: View {
         .onAppear { loadGame() }
     }
 
-    // MARK: - MODEL
+
     struct Piece: Identifiable, Codable {
         let id: UUID
         var row: Int
@@ -131,7 +130,7 @@ struct CheckersView: View {
         var isKing: Bool = false
     }
 
-    // MARK: - SAVE / LOAD
+ 
     func saveGame() {
         if let encoded = try? JSONEncoder().encode(pieces) {
             UserDefaults.standard.set(encoded, forKey: "savedPieces")
