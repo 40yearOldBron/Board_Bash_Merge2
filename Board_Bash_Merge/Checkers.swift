@@ -38,11 +38,8 @@ struct CheckersView: View {
                 .offset(x: 130 + shakeOffset, y: -370)
                 .onReceive(countdownTimer) { _ in
                     guard isTimerRunning else { return }
-
                     if timeRemaining > 0 {
                         timeRemaining -= 1
-
-                        // SHAKE when low
                         if timeRemaining <= 10 {
                             withAnimation(.easeInOut(duration: 0.1)) {
                                 shakeOffset = CGFloat.random(in: -5...5)
@@ -50,10 +47,9 @@ struct CheckersView: View {
                         } else {
                             shakeOffset = 0
                         }
-
                     } else {
                         timerFinished = true
-                        isTimerRunning = false
+                        isTimerRunning = true
                     }
                 }
                 .fullScreenCover(isPresented: $timerFinished) {
@@ -119,21 +115,26 @@ struct CheckersView: View {
             }
         }
         .onAppear {
-            loadGame()
-            isTimerRunning = true  // ▶️ resume timer when returning from boxing
+            loadGame()          // ✅ resets only if Play button wiped UserDefaults
+            isTimerRunning = true
         }
     }
 
+    // MARK: - Save / Load / Setup
 
-    struct Piece: Identifiable, Codable {
-        let id: UUID
-        var row: Int
-        var col: Int
-        var isRed: Bool
-        var isKing: Bool = false
+    func loadGame() {
+        if UserDefaults.standard.bool(forKey: "gameInProgress"),
+           let data = UserDefaults.standard.data(forKey: "savedPieces"),
+           let decoded = try? JSONDecoder().decode([Piece].self, from: data) {
+            // 🔄 returning from Boxing — restore saved board
+            pieces = decoded
+            isRedTurn = UserDefaults.standard.bool(forKey: "savedTurn")
+        } else {
+            // 🆕 Play button was pressed — start fresh
+            setupBoard()
+        }
     }
 
- 
     func saveGame() {
         if let encoded = try? JSONEncoder().encode(pieces) {
             UserDefaults.standard.set(encoded, forKey: "savedPieces")
@@ -142,22 +143,14 @@ struct CheckersView: View {
         UserDefaults.standard.set(true, forKey: "gameInProgress")
     }
 
-    func loadGame() {
-        if UserDefaults.standard.bool(forKey: "gameInProgress"),
-           let data = UserDefaults.standard.data(forKey: "savedPieces"),
-           let decoded = try? JSONDecoder().decode([Piece].self, from: data) {
-            pieces = decoded
-            isRedTurn = UserDefaults.standard.bool(forKey: "savedTurn")
-        } else {
-            setupBoard()
-        }
-    }
-
     func setupBoard() {
         pieces.removeAll()
-        UserDefaults.standard.removeObject(forKey: "savedPieces")
-        UserDefaults.standard.removeObject(forKey: "savedTurn")
-        UserDefaults.standard.set(false, forKey: "gameInProgress")
+        selectedPieceID = nil
+        isRedTurn = true
+        isMoving = false
+        isMidCapture = false
+        timeRemaining = 60
+        timerFinished = false
 
         for row in 0..<3 {
             for col in 0..<8 where (row + col) % 2 == 1 {
@@ -171,12 +164,12 @@ struct CheckersView: View {
         }
     }
 
-  
+    // MARK: - Game Logic
+
     func pieceAt(row: Int, col: Int) -> Piece? {
         pieces.first { $0.row == row && $0.col == col }
     }
 
- 
     @discardableResult
     func movePiece(by id: UUID, toRow: Int, toCol: Int) -> Bool {
         guard let index = pieces.firstIndex(where: { $0.id == id }) else { return false }
@@ -289,7 +282,6 @@ struct CheckersView: View {
         }
     }
 
-
     func makeAIMove() {
         isMoving = true
         isTimerRunning = true
@@ -343,7 +335,7 @@ struct CheckersView: View {
             } else {
                 isRedTurn = true
                 isMoving = false
-                isTimerRunning = true  // ▶️ resume timer
+                isTimerRunning = true
                 saveGame()
             }
         }
