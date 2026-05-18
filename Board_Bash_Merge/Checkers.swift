@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFAudio
 
 struct CheckersView: View {
 
@@ -7,8 +8,10 @@ struct CheckersView: View {
     @State private var isRedTurn = true
     @State private var isMoving = false
     @State private var isMidCapture = false
-
+    
+    @State private var player: AVAudioPlayer?
     @State var timeRemaining = 60.0
+
     @State var timerFinished = false
     @State private var isTimerRunning = true
     @State private var shakeOffset: CGFloat = 0
@@ -48,7 +51,7 @@ struct CheckersView: View {
                             shakeOffset = 0
                         }
                     } else {
-                        timerFinished = true
+                        timerFinished = false
                         isTimerRunning = true
                     }
                 }
