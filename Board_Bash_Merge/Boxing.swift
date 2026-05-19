@@ -298,12 +298,11 @@ struct Boxing: View {
                 .foregroundColor(timeRemaining <= 5 ? .red : .white)
                 .offset(x: 0, y: -335)
                 .onReceive(countdownTimer) { _ in
-                    if timeRemaining > 0 {
-                        timeRemaining -= 1
-                    } else {
+                    guard timeRemaining > 0 else {
                         timerFinished = true
-                        stopAI()
+                        return
                     }
+                    timeRemaining -= 1
                 }
                 .fullScreenCover(isPresented: $timerFinished) {
                     CheckersView()
@@ -340,10 +339,8 @@ struct Boxing: View {
 
             // MARK: - HITBOXES
             if showHitboxes {
-                // Player body hitbox
                 hitboxOverlay(rect: playerBodyRect(), color: .red)
                     .opacity(0.0)
-                // Player attack hitboxes
                 if change == Y {
                     hitboxOverlay(rect: playerPunchHitbox(), color: .orange)
                         .opacity(0.0)
@@ -352,10 +349,8 @@ struct Boxing: View {
                     hitboxOverlay(rect: playerKickHitbox(), color: .orange)
                         .opacity(0.0)
                 }
-                // AI body hitbox
                 hitboxOverlay(rect: aiBodyRect(), color: Color(red: 1, green: 0.2, blue: 0.2))
                     .opacity(0.0)
-                // AI attack hitboxes
                 if badChange == "badPunch" {
                     hitboxOverlay(rect: aiPunchHitbox(), color: .orange)
                         .opacity(0.0)
@@ -365,6 +360,7 @@ struct Boxing: View {
                         .opacity(0.0)
                 }
             }
+
             // TOP BUTTONS
             VStack {
                 HStack {
@@ -456,6 +452,8 @@ struct Boxing: View {
                 .opacity(0.08)
         }
         .onAppear {
+            timeRemaining = 30
+            timerFinished = false
             Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { _ in
                 if !isAnimating && !isBlocking {
                     change = (change == X) ? "Walk" : X

@@ -128,3 +128,6 @@ struct ContentView: View {
         player?.stop()
     }
 }
+#Preview{
+    ContentView()
+}

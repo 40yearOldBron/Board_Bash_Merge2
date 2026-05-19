@@ -11,10 +11,7 @@ struct CheckersView: View {
     
     @State private var player: AVAudioPlayer?
     @State var timeRemaining = 60.0
-
     @State var timerFinished = false
-    @State private var isTimerRunning = true
-    @State private var shakeOffset: CGFloat = 0
 
     let countdownTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -38,29 +35,19 @@ struct CheckersView: View {
                 .fontWeight(.black)
                 .cornerRadius(30)
                 .foregroundColor(.white)
-                .offset(x: 130 + shakeOffset, y: -370)
+                .offset(x: 130, y: -370)
                 .onReceive(countdownTimer) { _ in
-                    guard isTimerRunning else { return }
-                    if timeRemaining > 0 {
-                        timeRemaining -= 1
-                        if timeRemaining <= 10 {
-                            withAnimation(.easeInOut(duration: 0.1)) {
-                                shakeOffset = CGFloat.random(in: -5...5)
-                            }
-                        } else {
-                            shakeOffset = 0
-                        }
-                    } else {
-                        timerFinished = false
-                        isTimerRunning = true
+                    guard timeRemaining > 0 else {
+                        timerFinished = true
+                        return
                     }
+                    timeRemaining -= 1
                 }
                 .fullScreenCover(isPresented: $timerFinished) {
                     Boxing(rand: 0, xP: .constant(0))
                         .onDisappear {
                             timeRemaining = 60
                             timerFinished = false
-                            isTimerRunning = true
                         }
                 }
 
@@ -118,8 +105,9 @@ struct CheckersView: View {
             }
         }
         .onAppear {
-            loadGame()          // ✅ resets only if Play button wiped UserDefaults
-            isTimerRunning = true
+            timeRemaining = 60
+            timerFinished = false
+            loadGame()
         }
     }
 
@@ -129,11 +117,9 @@ struct CheckersView: View {
         if UserDefaults.standard.bool(forKey: "gameInProgress"),
            let data = UserDefaults.standard.data(forKey: "savedPieces"),
            let decoded = try? JSONDecoder().decode([Piece].self, from: data) {
-            // 🔄 returning from Boxing — restore saved board
             pieces = decoded
             isRedTurn = UserDefaults.standard.bool(forKey: "savedTurn")
         } else {
-            // 🆕 Play button was pressed — start fresh
             setupBoard()
         }
     }
@@ -152,8 +138,6 @@ struct CheckersView: View {
         isRedTurn = true
         isMoving = false
         isMidCapture = false
-        timeRemaining = 60
-        timerFinished = false
 
         for row in 0..<3 {
             for col in 0..<8 where (row + col) % 2 == 1 {
@@ -287,7 +271,6 @@ struct CheckersView: View {
 
     func makeAIMove() {
         isMoving = true
-        isTimerRunning = true
 
         let cpuPieces = pieces.filter { !$0.isRed }
 
@@ -320,7 +303,6 @@ struct CheckersView: View {
         guard let move = candidates.randomElement() else {
             isRedTurn = true
             isMoving = false
-            isTimerRunning = true
             return
         }
 
@@ -338,7 +320,6 @@ struct CheckersView: View {
             } else {
                 isRedTurn = true
                 isMoving = false
-                isTimerRunning = true
                 saveGame()
             }
         }
@@ -348,7 +329,6 @@ struct CheckersView: View {
         guard let current = pieces.first(where: { $0.id == pieceID }) else {
             isRedTurn = true
             isMoving = false
-            isTimerRunning = true
             return
         }
 
@@ -357,7 +337,6 @@ struct CheckersView: View {
         guard let dest = dests.randomElement() else {
             isRedTurn = true
             isMoving = false
-            isTimerRunning = true
             saveGame()
             return
         }
@@ -372,7 +351,6 @@ struct CheckersView: View {
         } else {
             isRedTurn = true
             isMoving = false
-            isTimerRunning = true
             saveGame()
         }
     }
