@@ -38,6 +38,9 @@ struct Boxing: View {
     @State private var canKick = true
     @State private var audioPlayer: AVAudioPlayer?
 
+    // MARK: - Countdown Timer
+    @State private var countdownTimerRef: Timer? = nil
+
     // MARK: - Hitbox Visibility (debug toggle)
     @State private var showHitboxes = true
 
@@ -53,8 +56,6 @@ struct Boxing: View {
     let maxX: CGFloat = 150
     let moveStep: CGFloat = 6
     let aiCloseRange: CGFloat = 120
-
-    let countdownTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var timeString: String {
         let minutes = Int(timeRemaining) / 60
@@ -276,6 +277,25 @@ struct Boxing: View {
         aiMoveDirection = 0
     }
 
+    // MARK: - Countdown Timer
+    func startCountdown() {
+        countdownTimerRef?.invalidate()
+        countdownTimerRef = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            guard timeRemaining > 0 else {
+                timerFinished = true
+                countdownTimerRef?.invalidate()
+                countdownTimerRef = nil
+                return
+            }
+            timeRemaining -= 1
+        }
+    }
+
+    func stopCountdown() {
+        countdownTimerRef?.invalidate()
+        countdownTimerRef = nil
+    }
+
     // MARK: - Hitbox View Helper
     @ViewBuilder
     func hitboxOverlay(rect: CGRect, color: Color) -> some View {
@@ -297,13 +317,6 @@ struct Boxing: View {
                 .fontWeight(.black)
                 .foregroundColor(timeRemaining <= 5 ? .red : .white)
                 .offset(x: 0, y: -335)
-                .onReceive(countdownTimer) { _ in
-                    guard timeRemaining > 0 else {
-                        timerFinished = true
-                        return
-                    }
-                    timeRemaining -= 1
-                }
                 .fullScreenCover(isPresented: $timerFinished) {
                     CheckersView()
                         .onDisappear {
@@ -454,14 +467,23 @@ struct Boxing: View {
         .onAppear {
             timeRemaining = 30
             timerFinished = false
+
+            // Start countdown only when the screen appears
+            startCountdown()
+
+            // Walk animation cycle
             Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { _ in
                 if !isAnimating && !isBlocking {
                     change = (change == X) ? "Walk" : X
                 }
             }
+
             startAI()
         }
-        .onDisappear { stopAI() }
+        .onDisappear {
+            stopCountdown()
+            stopAI()
+        }
     }
 }
 

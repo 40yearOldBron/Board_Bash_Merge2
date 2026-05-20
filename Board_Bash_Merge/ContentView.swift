@@ -123,11 +123,11 @@ struct ContentView: View {
         }
     }
     
-    // ⛔ STOP
     func stopMusic() {
         player?.stop()
     }
 }
-#Preview{
+
+#Preview {
     ContentView()
 }
