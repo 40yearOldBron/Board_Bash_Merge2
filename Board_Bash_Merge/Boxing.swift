@@ -52,6 +52,10 @@ struct Boxing: View {
     @State private var aiMoveDirection: CGFloat = 0
     @State private var aiMoveTimer2: Timer? = nil
 
+    // MARK: - Game Over
+    @State private var gameOver = false
+    @State private var playerWon = false
+
     let minX: CGFloat = -150
     let maxX: CGFloat = 150
     let moveStep: CGFloat = 6
@@ -107,6 +111,7 @@ struct Boxing: View {
         if attackBox.intersects(targetBox) {
             let dmg = isKick ? 12 : 8
             badDam = max(0, badDam - (aiIsBlocking ? dmg / 2 : dmg))
+            checkForGameOver()
         }
     }
 
@@ -116,7 +121,18 @@ struct Boxing: View {
         if attackBox.intersects(targetBox) {
             let dmg = isKick ? 10 : 7
             goDam = max(0, goDam - (isBlocking ? dmg / 2 : dmg))
+            checkForGameOver()
         }
+    }
+
+    // MARK: - Game Over
+    func checkForGameOver() {
+        guard goDam <= 0 || badDam <= 0 else { return }
+        stopCountdown()
+        stopAI()
+        // Player wins if enemy (badDam) hit zero
+        playerWon = badDam <= 0
+        gameOver = true
     }
 
     // MARK: - Sound
@@ -464,11 +480,12 @@ struct Boxing: View {
                 .offset(x: 177, y: 300)
                 .opacity(0.08)
         }
+        .fullScreenCover(isPresented: $gameOver) {
+            End(rand: playerWon ? 1 : 0, xP: .constant(0))
+        }
         .onAppear {
             timeRemaining = 30
             timerFinished = false
-
-            // Start countdown only when the screen appears
             startCountdown()
 
             // Walk animation cycle

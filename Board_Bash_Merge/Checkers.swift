@@ -20,6 +20,10 @@ struct CheckersView: View {
     @State private var turnTimeRemaining = 10.00
     @State private var turnTimer: Timer? = nil
 
+    // GAME OVER
+    @State private var gameOver = false
+    @State private var playerWon = false
+
     // MAIN TIMER STRING
     var timeString: String {
         let m = Int(timeRemaining) / 60
@@ -137,6 +141,9 @@ struct CheckersView: View {
                 .offset(x: 2, y: -20)
             }
         }
+        .fullScreenCover(isPresented: $gameOver) {
+            End(rand: playerWon ? 1 : 0, xP: .constant(0))
+        }
         .onAppear {
 
             timeRemaining = 60
@@ -220,6 +227,24 @@ struct CheckersView: View {
 
         turnTimer?.invalidate()
         turnTimer = nil
+    }
+
+    // MARK: - Game Over
+
+    func checkForGameOver() {
+
+        let redPieces = pieces.filter { $0.isRed }
+        let bluePieces = pieces.filter { !$0.isRed }
+
+        guard redPieces.isEmpty || bluePieces.isEmpty else { return }
+
+        stopTimer()
+        stopTurnTimer()
+
+        // Player is red; CPU is blue
+        // If blue (CPU) has no pieces, player wins
+        playerWon = bluePieces.isEmpty
+        gameOver = true
     }
 
     // MARK: - Save / Load / Setup
@@ -476,6 +501,7 @@ struct CheckersView: View {
             isMoving = false
 
             saveGame()
+            checkForGameOver()
             return
         }
 
@@ -485,6 +511,9 @@ struct CheckersView: View {
         isMoving = false
 
         saveGame()
+        checkForGameOver()
+
+        guard !gameOver else { return }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
 
@@ -558,6 +587,11 @@ struct CheckersView: View {
             // RESET TURN CLOCK
             resetTurnTimer()
 
+            saveGame()
+            checkForGameOver()
+
+            guard !gameOver else { return }
+
             if wasCapture,
                let movedPiece = pieces.first(where: { $0.id == move.0 }),
                canCaptureAgain(piece: movedPiece) {
@@ -571,8 +605,6 @@ struct CheckersView: View {
 
                 isRedTurn = true
                 isMoving = false
-
-                saveGame()
             }
         }
     }
@@ -594,6 +626,7 @@ struct CheckersView: View {
             isMoving = false
 
             saveGame()
+            checkForGameOver()
             return
         }
 
@@ -605,6 +638,11 @@ struct CheckersView: View {
 
         // RESET TURN CLOCK
         resetTurnTimer()
+
+        saveGame()
+        checkForGameOver()
+
+        guard !gameOver else { return }
 
         if let next = pieces.first(where: { $0.id == current.id }),
            canCaptureAgain(piece: next) {
@@ -618,8 +656,6 @@ struct CheckersView: View {
 
             isRedTurn = true
             isMoving = false
-
-            saveGame()
         }
     }
 }
