@@ -3,6 +3,7 @@ import AVFAudio
 
 struct CheckersView: View {
 
+    @Environment(\.dismiss) var dismiss
     @State private var pieces: [Piece] = []
     @State private var selectedPieceID: UUID? = nil
     @State private var isRedTurn = true
@@ -11,27 +12,22 @@ struct CheckersView: View {
     
     @State private var player: AVAudioPlayer?
 
-    // MAIN GAME TIMER
     @State var timeRemaining = 60.0
     @State var timerFinished = false
     @State private var countdownTimer: Timer? = nil
 
-    // TURN TIMER
     @State private var turnTimeRemaining = 10.00
     @State private var turnTimer: Timer? = nil
 
-    // GAME OVER
     @State private var gameOver = false
     @State private var playerWon = false
 
-    // MAIN TIMER STRING
     var timeString: String {
         let m = Int(timeRemaining) / 60
         let s = Int(timeRemaining) % 60
         return String(format: "%d:%02d", m, s)
     }
 
-    // TURN TIMER STRING
     var turnTimeString: String {
         return String(format: "%.1f", turnTimeRemaining)
     }
@@ -44,7 +40,6 @@ struct CheckersView: View {
                 .resizable()
                 .ignoresSafeArea()
 
-            // MAIN TIMER
             Text(timeString)
                 .frame(width: 100, height: 100)
                 .background(timeRemaining <= 10 ? Color.red : Color.black)
@@ -66,7 +61,6 @@ struct CheckersView: View {
                         }
                 }
 
-            // TURN LABEL
             VStack {
 
                 Text(isRedTurn ? "Blue's Turn" : "Red's Turn")
@@ -78,7 +72,6 @@ struct CheckersView: View {
                     .cornerRadius(30)
                     .offset(y: 300)
 
-                // TURN CLOCK
                 Text(turnTimeString)
                     .font(.title)
                     .fontWeight(.black)
@@ -86,7 +79,6 @@ struct CheckersView: View {
                     .offset(y: 230)
             }
 
-            // BOARD
             VStack {
 
                 LazyVGrid(
@@ -142,7 +134,10 @@ struct CheckersView: View {
             }
         }
         .fullScreenCover(isPresented: $gameOver) {
-            End(rand: playerWon ? 1 : 0, xP: .constant(0))
+            End(rand: playerWon ? 1 : 0, xP: .constant(0)) {
+                gameOver = false
+                dismiss()
+            }
         }
         .onAppear {
 
@@ -160,8 +155,6 @@ struct CheckersView: View {
             stopTurnTimer()
         }
     }
-
-    // MARK: - MAIN TIMER
 
     func startTimer() {
 
@@ -190,8 +183,6 @@ struct CheckersView: View {
         countdownTimer = nil
     }
 
-    // MARK: - TURN TIMER
-
     func startTurnTimer() {
 
         stopTurnTimer()
@@ -208,10 +199,7 @@ struct CheckersView: View {
 
                 } else {
 
-                    // SWITCH TURNS
                     isRedTurn.toggle()
-
-                    // RESET TURN TIMER
                     turnTimeRemaining = 10.00
                 }
             }
@@ -219,7 +207,6 @@ struct CheckersView: View {
     }
 
     func resetTurnTimer() {
-
         turnTimeRemaining = 10.00
     }
 
@@ -228,8 +215,6 @@ struct CheckersView: View {
         turnTimer?.invalidate()
         turnTimer = nil
     }
-
-    // MARK: - Game Over
 
     func checkForGameOver() {
 
@@ -241,13 +226,9 @@ struct CheckersView: View {
         stopTimer()
         stopTurnTimer()
 
-        // Player is red; CPU is blue
-        // If blue (CPU) has no pieces, player wins
         playerWon = bluePieces.isEmpty
         gameOver = true
     }
-
-    // MARK: - Save / Load / Setup
 
     func loadGame() {
 
@@ -314,8 +295,6 @@ struct CheckersView: View {
             }
         }
     }
-
-    // MARK: - Game Logic
 
     func pieceAt(row: Int, col: Int) -> Piece? {
 
@@ -442,7 +421,6 @@ struct CheckersView: View {
     }
 
     func canCaptureAgain(piece: Piece) -> Bool {
-
         !captureDestinations(for: piece).isEmpty
     }
 
@@ -489,7 +467,6 @@ struct CheckersView: View {
             toCol: col
         )
 
-        // RESET TURN CLOCK
         resetTurnTimer()
 
         if didCapture,
@@ -516,7 +493,6 @@ struct CheckersView: View {
         guard !gameOver else { return }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-
             makeAIMove()
         }
     }
@@ -533,10 +509,7 @@ struct CheckersView: View {
         for piece in cpuPieces {
 
             for dest in captureDestinations(for: piece) {
-
-                captureMoves.append(
-                    (piece.id, dest.0, dest.1)
-                )
+                captureMoves.append((piece.id, dest.0, dest.1))
             }
         }
 
@@ -554,18 +527,13 @@ struct CheckersView: View {
                     let c = piece.col + dir.1
 
                     if isValidMove(from: piece, toRow: r, toCol: c) {
-
-                        normalMoves.append(
-                            (piece.id, r, c)
-                        )
+                        normalMoves.append((piece.id, r, c))
                     }
                 }
             }
         }
 
-        let candidates = captureMoves.isEmpty
-        ? normalMoves
-        : captureMoves
+        let candidates = captureMoves.isEmpty ? normalMoves : captureMoves
 
         guard let move = candidates.randomElement() else {
 
@@ -578,13 +546,8 @@ struct CheckersView: View {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
 
-            movePiece(
-                by: move.0,
-                toRow: move.1,
-                toCol: move.2
-            )
+            movePiece(by: move.0, toRow: move.1, toCol: move.2)
 
-            // RESET TURN CLOCK
             resetTurnTimer()
 
             saveGame()
@@ -597,7 +560,6 @@ struct CheckersView: View {
                canCaptureAgain(piece: movedPiece) {
 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-
                     continueAICapture(pieceID: move.0)
                 }
 
@@ -630,13 +592,8 @@ struct CheckersView: View {
             return
         }
 
-        movePiece(
-            by: current.id,
-            toRow: dest.0,
-            toCol: dest.1
-        )
+        movePiece(by: current.id, toRow: dest.0, toCol: dest.1)
 
-        // RESET TURN CLOCK
         resetTurnTimer()
 
         saveGame()
@@ -648,7 +605,6 @@ struct CheckersView: View {
            canCaptureAgain(piece: next) {
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-
                 continueAICapture(pieceID: next.id)
             }
 
