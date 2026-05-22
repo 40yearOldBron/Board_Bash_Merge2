@@ -134,10 +134,8 @@ struct CheckersView: View {
             }
         }
         .fullScreenCover(isPresented: $gameOver) {
-            End(rand: playerWon ? 1 : 0, xP: .constant(0)) {
-                gameOver = false
-                dismiss()
-            }
+            End(rand: playerWon ? 1 : 0, xP: .constant(0))
+            
         }
         .onAppear {
 
@@ -615,7 +613,9 @@ struct CheckersView: View {
         }
     }
 }
-
 #Preview {
-    CheckersView()
+    End(
+        rand: 0,
+        xP: .constant(0)
+    )
 }
